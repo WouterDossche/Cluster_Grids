@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clusteroplossing – Tegeloverzicht (Methode C)</title>
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --tile: #4e79a7;
+    --tile-hover: #3a5d7a;
+    --panel: #ffffff;
+    --border: #ddd;
+    --accent: #e9ecef;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    display: flex;
+    height: 100vh;
+    background: var(--bg);
+  }
+  #grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    padding: 70px 15px 15px 15px;
+    overflow-y: auto;
+  }
+  .tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--tile);
+    color: #fff;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform .2s, background .2s, opacity .2s, filter .2s;
+    text-align: center;
+    padding: 10px;
+  }
+  .tile:hover { transform: scale(1.05); background: var(--tile-hover); }
+  .tile.dim { opacity: 0.35; filter: grayscale(40%); }
+  #detail {
+    width: 36%;
+    min-width: 340px;
+    background: var(--panel);
+    border-left: 2px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  #controls {
+    padding: 10px;
+    background: var(--accent);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .btn {
+    padding: 6px 12px;
+    border: none;
+    background: var(--tile);
+    color: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .btn:hover { background: var(--tile-hover); }
+  #titleArea { padding: 12px 16px 0 16px; }
+  #titleArea h2 { margin: 0 0 6px 0; }
+  #skillList {
+    padding: 12px 16px 16px 16px;
+    overflow-y: auto;
+  }
+  .skill-item {
+    margin-bottom: 6px;
+    white-space: nowrap;
+  }
+  #searchBar {
+    position: fixed;
+    top: 12px;
+    right: calc(36% + 20px);
+    z-index: 1000;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  #searchInput {
+    padding: 8px 10px;
+    width: 280px;
+    max-width: 50vw;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+  }
+  #matchCount {
+    font-size: 12px;
+    color: #333;
+  }
+  .cluster-block h3 {
+    margin: 14px 0 6px 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div id="searchBar">
+  <input id="searchInput" type="text" placeholder="Zoek skill in alle clusters…">
+  <button class="btn" id="clearBtn" aria-label="Wis zoekopdracht">Wissen</button>
+  <span id="matchCount"></span>
+</div>
+
+<div id="grid"></div>
+
+<div id="detail">
+  <div id="controls">
+    <button class="btn" id="showAllBtn">Toon alle clusters</button>
+    <div></div>
+  </div>
+  <div id="titleArea">
+    <h2>Klik op een tegel</h2>
+    <div id="subtitle"></div>
+  </div>
+  <div id="skillList"></div>
+</div>
+
+<script>
+  const clusters = {"0": ["Fysiek werk", "Ergonomie", "Pneumatiek", "Mechaniek", "Werktuigbouwkunde"], "1": ["De werkpost voorzien van materiaal en producten of de bevoorrading controleren", "Technische dossiers", "Technische documentatie", "Technisch beheer", "Het product in de verschillende fases van het productieproces controleren", "Het werk van leveranciers of dienstverleners controleren", "Technische controle", "Contact met leveranciers"], "2": ["Procesoptimalisatie", "Operationele efficiëntie", "Optimalisatie", "Administratie"], "3": ["Elektrische en elektronische componenten positioneren volgens volgorde van montage of de machine bevoorraden", "Technische werken uitvoeren: Elektrische uitrusting installeren", "De conformiteit van de werking van de installaties verzekeren (standaardinstellingen, veiligheid, milieu, ...)", "De installatie configureren en afstellen", "Elektrische installaties onderhouden en herstellen (verlichting, ventilatie, intercom, ...)", "Voorbereidende tests uitvoeren voor het in werking stellen van de elektrische installatie of uitrusting", "De inplanting van industriële of exploitatie-uitrusting op een site bepalen", "De installatie herstellen door elektrische, elektronische, mechanische, pneumatische en hydraulische componenten te vervangen en/of te herstellen", "De benodigde materialen en gereedschappen selecteren (elektronische componenten en modules, testapparaten, signaalgeneratoren, ...)", "De elektrische installatie in werking stellen en controles uitvoeren", "De onderdelen van de elektronische installatie installeren en aansluiten in functie van de behoeften en gebruiksdoelen", "Toezicht houden op werkende installaties (rondes, ...)"], "4": ["Zonnepanelen", "Hernieuwbare energie", "Energietechniek", "Elektrodelassen", "Generator"], "5": ["Milieu", "Duurzaamheid", "Afvalverwerking", "Schadebeheer", "Hygiënenormen", "Duurzaam ontwerp", "Milieuzorg", "Recyclage"], "6": ["Textiel", "PVC", "Inventaris", "Kunststof", "Non-wovens", "Meubels"], "7": ["Kwaliteitscontrole", "Proefdraaien", "Evalueren", "Verificatie", "Testen uitvoeren", "Onderzoek", "Hoogtewerkerattest", "Foutenanalyse", "Inspecties"], "8": ["Technologie", "Digitalisering", "Logica", "ICT", "Informatica", "Profi-net", "Software", "PC kennis"], "9": ["Uitlijnen", "Wegenwerken", "Verhuizen", "Renovatiewerk", "Nieuwbouw", "Infrastructuurwerken", "Lijnoperatie"], "10": ["Distributie", "Hulpverlening", "Leveringen"], "11": ["Heftruck", "Interne transportmiddelen", "Transport", "Wagenparkbeheer", "Vrachtwagens", "Aandrijving", "Voertuigen", "Mobiliteit", "Tractoren", "Transportbanden"], "12": ["Smeerplannen", "Productieplanning", "Mechanisch plan", "Productiemanagement", "Planning", "Projectuitvoering", "De werkzaamheden plannen volgens de behoeften of bestellingen van klanten", "Planlezen", "Technische plannen", "Projectmanagement", "Leidingwerken", "Productieprocessen", "Werk voorbereiden"], "13": ["Bouwkranen", "Tandwielkasten", "Schakelkasten", "Bouwplaatsmachines", "Torenkraan", "Graafkranen"], "14": ["Preventief of correctief basisonderhoud van machines of uitrustingen uitvoeren", "Preventieve of correctieve onderhoudswerken organiseren, plannen en opvolgen", "Preventieve of correctieve onderhoudsinterventies bepalen volgens de aard van de werkzaamheden (inwerkingstelling, productiewijziging, ...) of de onderhoudshistoriek", "De industriële of exploitatie-uitrusting afstellen en de werking ervan controleren", "Basisonderhoud van machines en uitrustingen uitvoeren", "De werkzone opruimen en schoonmaken en basisonderhoud uitvoeren aan gereedschappen en installaties", "Operatoren en technici opleiden in procedures en technieken voor onderhoud en afregeling en ze assisteren", "Een onderhoudsploeg of een productie- of exploitatieteam technisch bijstaan"], "15": ["Werken aan: Compressoren", "Werken aan: Transformatoren", "Compressors", "Werken aan: Ventilatoren", "Werken aan: Pompen", "Werken aan: Generatoren"], "16": ["Beveiliging", "Alarminstallaties", "Isolatietechnieken", "Brandbeveiliging", "Veiligheid", "Solderen"], "17": ["Duits", "Frans", "Nederlands", "Engels", "Schrijfvaardig"], "18": ["Siemens S7", "Siemens s5-s7", "Siemens PLC"], "19": ["Wassen", "Hijsen", "Zagen", "Boren", "Heffen", "Tekenen", "Schetsen", "Walsen"], "20": ["Verdeelborden", "Rolbrug", "Werkbonnen", "Borden bouwen", "Bouwtechnieken", "Boutverbindingen"], "21": ["Perslucht", "Bakkerij", "Werken met ovens", "Luchtvaart", "Gas", "Persluchtsystemen", "Brouwerij"], "22": ["Transmissie", "Bewaking", "Signalisatie", "Materiaal voor lage spanning plaatsen en aansluiten (schakelaars, stopcontacten, ...)", "Verspaningstechniek", "Hoogspanning", "Relais"], "23": ["Verpakkingsmachines", "Verpakken", "Lastenboeken"], "24": ["Rijbewijs C", "Rijbewijs", "VCA attest", "Rijbewijs BE", "Rijbewijs B", "Rijbewijs CE", "BA5 attest", "BA4 attest"], "25": ["Databanken", "Scala", "SAP", "SAP IS-U", "ERP", "Microsoft Office", "Microsoft Excel", "Elektronisch schema", "Microsoft Outlook", "Microsoft Powerpoint", "Microsoft Windows", "Microsoft Word", "Microsoft"], "26": ["Spuitgietmachines", "Smeertechnieken", "Spuitgieten", "Vacuümtechnieken", "Pijpleidingen"], "27": ["Machineonderdelen controleren en assembleren vóór aflevering (mechanische of hydraulische transmissie, veiligheidsuitrusting, stabilisator, ...)", "Mechanische stukken, onderdelen en systemen op maat brengen, vormgeven en aanpassen aan de installatie", "Het preventieve onderhoud van de mechanische uitrustingen uitvoeren (schoonmaken, smeren, bijstellen, aandraaien, ...)", "Motoren, mechanismen, veiligheidsuitrusting, ... testen en afstellen", "Monteren van onderdelen of stukken van de industriële of exploitatie-uitrusting volgens de machinevoorschriften, documentatie, ...", "Mechanische stukken en onderdelen lassen (vlambooglassen, solderen, ...)", "De uitrusting onderhouden (motoren, hydraulische installaties, mechanismen, ...)", "De uitrusting wijzigen of aanpassen volgens de wettelijke of productievereisten (productiesnelheid, nieuwe producten, ...)", "De elementen van het elektrische of elektronische product monteren (componenten, bedrading, ...)"], "28": ["Domein: Robotica", "Domein: Pneumatica", "Domein: Fitterij", "Domein: Optica", "Domein: Precisiemechanica", "Domein: Bewapening", "Domein: Hydraulica"], "29": ["Half automaat lassen", "Technische werken uitvoeren: Printplaten vervangen", "Onderdelen vervangen"], "30": ["Storingstechnieken", "Lagertechnieken", "Haventechnieken", "Storingsanalyse", "Storingen detecteren"], "31": ["Reinigingsmachines", "Hygiëne", "Sanitaire installaties", "Pompinstallaties", "Pools", "Sprinklerinstallaties", "Waterbehandeling", "Waterzuivering", "Oppervlaktebehandeling"], "32": ["Chariot élévateur", "Autotechnologie", "Automechanica", "Roterende machines", "Rollend materieel", "Carrosserie"], "33": ["Bouwmaterialen", "Matrijzenbouw", "Prefabbouw", "Constructietechniek", "Staalconstructies", "Betonnering"], "34": ["Onderhoudsprocedures, werkwijzen, technische fiches, opvolginstrumenten ontwikkelen en verbeteren", "Permanentiesystemen", "Besturingssystemen", "Industrieel onderhoud"], "35": ["Computergestuurde machines", "Machinebediening", "Automatisatie", "Domein: Automatisering, industriële informatica"], "36": ["Een diagnose stellen van storingen aan installaties en de defecte onderdelen herstellen", "Storingen aan elektronische uitrustingen opsporen en het defect lokaliseren", "Werken aan: PLC-sturingen", "Een computer aansluiten op de uitrusting en storingen opsporen met behulp van geregistreerde programma's", "Een defect of storing van elektrische oorsprong of onreglementaire situaties lokaliseren en diagnosticeren", "De metingen analyseren. De diagnose stellen van de oorzaken van de storingen. Wijzigingen doorvoeren met het oog op het conform maken van het product", "De interventies op elektronische installaties bepalen op basis van technische dossiers en klantendossiers", "De elektrische isolatie controleren en de oorsprong van stroomlekken opsporen", "De aard van de interventie bepalen op basis van technische dossiers en aanwijzingen van deskundigen en klanten", "Bepalen welke herstellingen aan de elektrische installatie of uitrusting nodig zijn en de defecte onderdelen opsporen", "Een storing in de installatie lokaliseren en technische oplossingen en herstellingsvoorwaarden bepalen", "Kosten en herstellingstermijnen inschatten en een kostenraming voor de interventie opmaken", "De voorwaarden en modaliteiten voor interventies aan elektrische installaties of uitrusting bepalen en het gereedschap klaarmaken"], "37": ["Crisishantering", "Hijstoestellen", "Depannage", "Preventie"], "38": ["De werking van het apparaat controleren. De functionaliteiten simuleren. Het apparaat in extreme omstandigheden uitproberen", "Technische werken uitvoeren: Registratietoestellen plaatsen (druk, intensiteit, verbruik, ...)", "De werking van het materiaal, de instrumentengegevens (druk, debiet, temperatuur, ...) en de kritieke punten (slijtage, smering, ...) controleren"], "39": ["Hydroliek", "Chemicaliën", "Chemie"], "40": ["Flensmontage", "Montage", "Productietechnieken", "Assemblage"], "41": ["Herstellingen", "Redigeren", "Verreiker", "Corrigeren"], "42": ["Zaagmachines", "Werfmachines", "Snijmachines", "CNC machine", "Freesmachines", "Graafmachine", "Productiemachines", "Bouwmachines", "Boormachines"], "43": ["Controleren", "Controles en procedures van tests en proeven vastleggen volgens het lastenboek en technische dossiers"], "44": ["Nutsvoorzieningen", "Food defense", "HACCP-wetgeving", "Voedselveiligheid", "Landbouw"], "45": ["Sorteren", "Investeringen", "Bestellingen", "Orderpicking", "Outillage"], "46": ["ISO normen", "Réglementations", "Kwaliteitsnormen", "Meet- en regeltechniek", "Milieureglementering", "Wetgeving", "Regelkleppen", "Reglementering", "Regelsystemen"], "47": ["De kabels van industriële elektrische uitrusting aansluiten op machines, verlichtingspunten of stopcontacten", "Tracés realiseren voor het doortrekken van kabels (muren doorboren, dichtplamuren, ...)", "Technische werken uitvoeren: Kabels trekken", "Technische werken uitvoeren: Elektriciteitskasten bekabelen (relais, besturingsrelais, ...)", "Opgebouwde of ingebouwde kabelgoten en leidingen plaatsen", "Kabels trekken", "Een industriële elektriciteitskast plaatsen en uitrusten"], "48": ["3D inzicht", "Kennisdeling", "Technisch inzicht", "Vertegenwoordiging", "Kalibratie"], "49": ["Domein: Elektriciteit, elektronica en elektrotechniek", "Diodes", "Electrode", "Elektromechanica", "Elektrotechniek", "Lichttechniek", "Lasertechnologie", "Industriële elektrotechniek", "Ac/dc"], "50": ["Organiseren", "Methodisch handelen", "Facilitair werk", "Informeren", "Documenteren", "Aanpassingen doorvoeren", "De activiteiten van een team coördineren", "Werken op hoogte"], "51": ["Industriële reiniging", "Onderhoud", "Onderhoudsprocedures", "Onderhoudsrapporten", "Onderhoudstechniek", "Onderhoudsmanagement", "Onderhoudsplannen"], "52": ["Ontwerpen", "Technisch tekenen", "Vormgevingstechnieken", "Prototyping", "Industrieel ontwerp"], "53": ["Probleemdiagnose", "Foutopsporing", "Farmacie", "Medische kennis", "Traceerbaarheid", "Diagnostiek", "Detectie"], "54": ["Handgereedschappen", "Extrusie", "Vloerbekleding", "Fabricage", "Snijtechnieken", "Maatwerk", "Laswerk", "Wisselstukken"], "55": ["Weeftechniek", "Schaarlift", "Technisch materiaal", "Materiaalkennis", "Mechanische technieken", "Lifttechniek", "Machinebouw"], "56": ["De onderhoudsgegevens van een werkplaats of een dienst opvolgen, analyseren en afwijkingen vaststellen (kosten, onverwachte uitgaven, inventaris van losse stukken, ...)", "De opvolggegevens van interventies registreren en de informatie doorgeven aan de betrokken dienst", "De technische documentatie van machines of installaties actualiseren (constructeursrichtlijnen, historiek van defecten, wetgeving, ...)", "Gegevens voor productie- en kwaliteitsopvolging registreren (storingen, interventies, ...)"], "57": ["Installatietechnieken", "Technische installaties", "Afvulinstallatie", "De technische werking uitleggen aan klanten of gebruikers en hen begeleiden bij het in gebruik nemen van de installatie"], "58": ["Koel- en verwarmingstechniek", "Ventielen", "HVAC", "Verwarmingstechniek", "Ventilatie", "Klimatisatie", "Koeling"], "59": ["Schilderwerken", "Plaatsingstechnieken", "Fijn werk", "Plaatbewerking"], "60": ["Frequentieomvormers", "Frequentieregelaar", "Sensors", "Micrometer", "Sensortechnologie", "Multimeter", "Instrumentatie", "Elektronica"], "61": ["Schoonmaak", "Slijpschijf", "Slijpen", "Schuifmaten", "Lakken"], "62": ["Elektrische machines", "Transformatoren", "Verbrandingsmotoren", "Moteurs", "Dieselmotoren", "Elektromotoren", "Werken aan: Motoren", "Werken aan: Elektromotoren", "Motoren", "Motorsturing"], "63": ["Remmen", "Rekenen"], "64": ["Gerecupereerde bestanddelen en vloeistoffen sorteren en naar de behandelings- of opslagzones brengen (batterijen, koolwaterstoffen, smeermiddelen, ...)", "De werkzone reinigen en opruimen (materieel, hulpstukken, ...)"], "65": ["Ondernemerschap", "Kleinhandel"], "66": ["Voorraadbeheer", "Magazijn management", "Inkoopmanagement", "De voorraad opvolgen, tekorten vaststellen. Bestellingen plaatsen", "Een opvolgsysteem voor voorraden bijhouden (verbruik van losse stukken, ...)"], "67": ["Implementatie", "Registratie", "Procesverbetering", "Rapportering"], "68": ["Lasrobot", "Robots"], "69": ["Draaibanken", "Plooibanken", "Plooien"], "70": ["Injecteren", "Indienststelling", "Interventie"], "71": ["Technisch onderhoud", "Corrective maintenance", "Technische ondersteuning verlenen aan de afdelingen productie, kwaliteit, onderhoud, ...", "Technische ondersteuning"], "72": ["Nacelle", "AREI", "ATEX"], "73": ["Hout", "Houtbewerkingsmachines", "Houttechnieken"], "74": ["Bulldozer", "Magazijnwerk", "Logistiek", "Opleggers"], "75": ["Programmeren", "PLC programmatie", "Technische schemas"], "76": ["Metaalbewerking", "Metaalconstructie", "Metaaltechniek", "Metaal", "Metaalverwerking", "Aluminium", "Staal", "Roestvrij staal"], "77": ["Industriële apparatuur", "TIG lassen", "Wiellader", "Werktuigmachines", "MIG/MAG-lassen", "Machineonderdelen"], "78": ["Defecte producten triëren en naar de betrokken zones of diensten sturen (reparatie, recyclage, ontruiming, ...)", "Defecte mechanische stukken en onderdelen vervangen of herstellen, testen en afregelen (tandwieldrijfwerk, lagers, kettingwielen, ...)", "De onderdelen van de drager (behuizing, kasten, afdekking, ...) demonteren, vervangen of herstellen", "De componenten van defecte systemen identificeren, herstellen of vervangen (tandwielstellen, kogellagers, hydraulische verdelers, onderdelen van gestuurde processen, ...)", "De werking van de uitrusting en de conformiteit van hydraulische en pneumatische circuits controleren. Technische oplossingen bepalen voor de herstelling", "Defecte onderdelen vervangen of herstellen (onderdelen van motoren, thermische of hydraulische installaties, pompen, regelorganen, ...)"], "79": ["Opmetingen", "Configuratie", "Transformatie", "Stapelaar", "Innovatie"], "80": ["Bekabeling", "Ontmanteling", "Databekabeling", "Afkoppelen"]};
+  const grid = document.getElementById('grid');
+  const titleH2 = document.querySelector('#titleArea h2');
+  const subtitleDiv = document.getElementById('subtitle');
+  const listDiv = document.getElementById('skillList');
+  const searchInput = document.getElementById('searchInput');
+  const clearBtn = document.getElementById('clearBtn');
+  const matchCount = document.getElementById('matchCount');
+
+  const maxSize = Math.max(...Object.values(clusters).map(c => c.length));
+
+  function renderGrid(query = "") {
+    grid.innerHTML = "";
+    const q = query.trim().toLowerCase();
+    for (const [cid, skills] of Object.entries(clusters)) {
+      const sizeFactor = Math.sqrt(skills.length / maxSize) * 150 + 50;
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.style.height = sizeFactor + 'px';
+      let label = `Cluster ${cid}`;
+      if (q) {
+        const m = skills.filter(s => s.toLowerCase().includes(q)).length;
+        label += m ? ` • ${m} match(es)` : "";
+        if (!m) tile.classList.add('dim');
+      }
+      tile.textContent = label;
+      tile.onclick = () => showCluster(cid);
+      grid.appendChild(tile);
+    }
+  }
+
+  function showCluster(cid) {
+    const skills = clusters[cid] || [];
+    titleH2.textContent = 'Cluster ' + cid;
+    subtitleDiv.textContent = skills.length + ' skill(s)';
+    listDiv.innerHTML = skills.map(s => `<div class="skill-item">${s}</div>`).join('');
+  }
+
+  function showAll() {
+    titleH2.textContent = 'Alle clusters';
+    subtitleDiv.textContent = '';
+    let html = '';
+    for (const [cid, skills] of Object.entries(clusters)) {
+      html += `<div class="cluster-block"><h3>Cluster ${cid} — ${skills.length} skill(s)</h3>`;
+      html += skills.map(s => `<div class="skill-item">${s}</div>`).join('');
+      html += `</div>`;
+    }
+    listDiv.innerHTML = html;
+  }
+
+  function doSearch() {
+    const q = searchInput.value.trim().toLowerCase();
+    if (!q) {
+      matchCount.textContent = '';
+      renderGrid('');
+      titleH2.textContent = 'Klik op een tegel';
+      subtitleDiv.textContent = '';
+      listDiv.innerHTML = '';
+      return;
+    }
+    renderGrid(q);
+    const resultsByCluster = {};
+    let total = 0;
+    for (const [cid, skills] of Object.entries(clusters)) {
+      const matches = skills.filter(s => s.toLowerCase().includes(q));
+      if (matches.length) {
+        resultsByCluster[cid] = matches;
+        total += matches.length;
+      }
+    }
+    matchCount.textContent = total ? `${total} match(es)` : '0 matches';
+    titleH2.textContent = 'Zoekresultaten';
+    subtitleDiv.textContent = total + ' match(es) voor "' + q + '"';
+    let html = '';
+    for (const [cid, skills] of Object.entries(resultsByCluster)) {
+      html += `<div class="cluster-block"><h3>Cluster ${cid} — ${skills.length} match(es)</h3>`;
+      html += skills.map(s => `<div class="skill-item">${s}</div>`).join('');
+      html += `</div>`;
+    }
+    listDiv.innerHTML = html || '<em>Geen resultaten.</em>';
+  }
+
+  document.getElementById('showAllBtn').addEventListener('click', showAll);
+  searchInput.addEventListener('input', doSearch);
+  clearBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    doSearch();
+  });
+
+  renderGrid();
+
+  (function openFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const cid = params.get('cluster');
+    if (cid && clusters[cid]) showCluster(cid);
+  })();
+</script>
+
+</body>
+</html>
